@@ -1,7 +1,6 @@
 name: Weekly WSP literature update
 
 on:
-  workflow_dispatch:
   schedule:
     - cron: '17 9 * * 1'
       timezone: Asia/Shanghai
