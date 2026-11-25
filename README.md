@@ -65,6 +65,13 @@ The foundations include dedicated weight readers, behavioral probes, compilers, 
 | [Training Vision Models for LLM-Driven Weight-Space Programming](https://arxiv.org/abs/2611.26408) | arXiv preprint · 2026-11-19 | Method + benchmark | Compares training recipes that prepare vision targets for later closed-form edits, measuring held-out efficacy and side effects. [Project](https://viscom.uni-ulm.de/wsp/) |
 | [Keel: A Frontier Model Teaches a Vision-Language Model by Rewriting Its Weights](https://arxiv.org/abs/2611.25257) | arXiv preprint · 2026-11-18 | Method | Uses multimodal diagnostics and screened persistent edits to address reasoning loops in Qwen3.5-0.8B and 2B, measuring loop frequency, answer length and accuracy. |
 | [Weight-space programming and mechanistic interpretability for model editing in particle physics](https://arxiv.org/abs/2611.27079) | arXiv preprint · 2026-11-20 | Empirical study | Compares agent edits with sparse-autoencoder-guided repair of a particle-physics jet classifier under a restricted query budget. |
+| [Can a Frontier LLM Repair a Quantized Network by Tool-Free Weight-Space Programming?](https://arxiv.org/abs/2611.33031v1) | arXiv preprint · 2026-11-24 · v1 | Empirical study | Studies model repair or adaptation through parameter changes. |
+| [Reading, Writing and Repairing Game-Theoretic Policies in Weight Space](https://arxiv.org/abs/2611.31979v1) | arXiv preprint · 2026-11-24 · v1 | Empirical study | Studies model repair or adaptation through parameter changes. |
+| [Sparks of Weight-Space Programming for Robot Foundation Models](https://arxiv.org/abs/2611.31715v1) | arXiv preprint · 2026-11-24 · v1 | Empirical study | Studies model repair or adaptation through parameter changes. |
+| [TowerBridge: Bridging the Dual-Encoder Modality Gap via Weight-Space Programming](https://arxiv.org/abs/2611.31233v1) | arXiv preprint · 2026-11-23 · v1 | Empirical study | Studies model repair or adaptation through parameter changes. |
+| [Weight Coding: Evolving Web-Scale Recommenders through Direct Weight Edits with LLM Agents](https://arxiv.org/abs/2611.29613v1) | arXiv preprint · 2026-11-22 · v1 | Empirical study | Studies model repair or adaptation through parameter changes. |
+| [Autonomous Parameter Surgery: How LLMs Implant Selective Backdoors into Language Models](https://arxiv.org/abs/2611.27920v1) | arXiv preprint · 2026-11-20 · v1 | Empirical study | Studies model repair or adaptation through parameter changes. |
+| [Gradient-Free Few-Shot Adaptation of Vision Models via Agentic Coding](https://arxiv.org/abs/2611.28105v1) | arXiv preprint · 2026-11-17 · v1 | Empirical study | Studies model repair or adaptation through parameter changes. |
 
 ### Write and compile
 
@@ -83,6 +90,7 @@ The foundations include dedicated weight readers, behavioral probes, compilers, 
 | [Weight-space programming for tractor guidance controller: large language models natively write neural network weights that steer a real tractor](https://arxiv.org/abs/2611.21958) | arXiv preprint · 2026-11-16 | Empirical study | Programs a compact neural steering controller and evaluates it in simulation and a physical tractor experiment. |
 | [Weight-Space Programming for Materials Science](https://arxiv.org/abs/2611.22013) | arXiv preprint · 2026-11-17 | Empirical study | Turns domain knowledge into weights for materials-property ranking without labeled training examples. |
 | [Looped Weight-Space Programming: LLM-Written Transformers for Long Algorithmic Reasoning](https://mbzuai-oryx.github.io/LoopedWSP/) | Author report · 2026-11-23 | Empirical study | Programs looped Transformer weights for specified algorithms, including maze search, and compares with trained models and direct prompting. [Code](https://github.com/mbzuai-oryx/LoopedWSP) |
+| [PAWP-TTS: Phoneme-Aware Weight Programming for Compact Bilingual English-Nepali Speech Synthesis](https://arxiv.org/abs/2611.29455v1) | arXiv preprint · 2026-11-22 · v1 | Empirical study | Studies the construction of executable network weights. |
 
 ### Install and compose
 
@@ -106,6 +114,7 @@ The foundations include dedicated weight readers, behavioral probes, compilers, 
 | --- | --- | --- | --- |
 | [WeightBench: Evaluating Language Models as Weight-Space Programmers](https://arxiv.org/abs/2611.18553) | arXiv preprint · 2026-11-13 | Benchmark | Registers 42 tasks in five tracks, including infeasibility detection and systems constraints. In the paper, 39 meet the validity gate at default difficulty. [Code and leaderboard](https://github.com/Aayush-Marasini/WeightBench) |
 | [IWIBench: Evaluating Gradient-Free Model Driven Intra-weight Injection](https://arxiv.org/abs/2611.08647) | arXiv preprint · 2026-11-05 | Benchmark | Tests gradient-free edits on a fixed Gemma 3 4B IT checkpoint. The score combines normalized target gain with retention on baseline-correct control items. [Project](https://hcltech-robotics.github.io/iwibench/) · [Code](https://github.com/HCLTech-robotics/iwibench) |
+| [TrojanMaxxing: One-shotting VLM Backdoors with Weight-Space Programming](https://arxiv.org/abs/2611.27425v1) | arXiv preprint · 2026-11-20 · v1 | Benchmark | Proposes or studies evaluation tasks for weight-space programming. |
 
 WeightBench varies access, feedback and reference-solution privileges by task. IWIBench reports target gains and retention on specified controls for one target checkpoint. See the [benchmark review](docs/research-review.md#基准复核) for comparison details.
 

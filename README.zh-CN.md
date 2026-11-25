@@ -65,6 +65,13 @@
 | [Training Vision Models for LLM-Driven Weight-Space Programming](https://arxiv.org/abs/2611.26408) | arXiv 预印本 · 2026-11-19 | 方法与基准 | 比较多种面向后续闭式编辑的视觉模型训练方案，并在留出集上评估效果与副作用。 [项目页](https://viscom.uni-ulm.de/wsp/) |
 | [Keel: A Frontier Model Teaches a Vision-Language Model by Rewriting Its Weights](https://arxiv.org/abs/2611.25257) | arXiv 预印本 · 2026-11-18 | 方法 | 用多模态诊断和经筛选的持久编辑修复 Qwen3.5-0.8B 与 2B 的推理循环，并评估循环频率、答案长度和准确率。 |
 | [Weight-space programming and mechanistic interpretability for model editing in particle physics](https://arxiv.org/abs/2611.27079) | arXiv 预印本 · 2026-11-20 | 实证研究 | 在查询预算受限的条件下，比较智能体编辑和稀疏自编码器引导的方法对粒子物理喷注分类器的修复效果。 |
+| [Can a Frontier LLM Repair a Quantized Network by Tool-Free Weight-Space Programming?](https://arxiv.org/abs/2611.33031v1) | arXiv 预印本 · 2026-11-24 · v1 | 实证研究 | 研究通过参数修改进行模型修复或适配。 |
+| [Reading, Writing and Repairing Game-Theoretic Policies in Weight Space](https://arxiv.org/abs/2611.31979v1) | arXiv 预印本 · 2026-11-24 · v1 | 实证研究 | 研究通过参数修改进行模型修复或适配。 |
+| [Sparks of Weight-Space Programming for Robot Foundation Models](https://arxiv.org/abs/2611.31715v1) | arXiv 预印本 · 2026-11-24 · v1 | 实证研究 | 研究通过参数修改进行模型修复或适配。 |
+| [TowerBridge: Bridging the Dual-Encoder Modality Gap via Weight-Space Programming](https://arxiv.org/abs/2611.31233v1) | arXiv 预印本 · 2026-11-23 · v1 | 实证研究 | 研究通过参数修改进行模型修复或适配。 |
+| [Weight Coding: Evolving Web-Scale Recommenders through Direct Weight Edits with LLM Agents](https://arxiv.org/abs/2611.29613v1) | arXiv 预印本 · 2026-11-22 · v1 | 实证研究 | 研究通过参数修改进行模型修复或适配。 |
+| [Autonomous Parameter Surgery: How LLMs Implant Selective Backdoors into Language Models](https://arxiv.org/abs/2611.27920v1) | arXiv 预印本 · 2026-11-20 · v1 | 实证研究 | 研究通过参数修改进行模型修复或适配。 |
+| [Gradient-Free Few-Shot Adaptation of Vision Models via Agentic Coding](https://arxiv.org/abs/2611.28105v1) | arXiv 预印本 · 2026-11-17 · v1 | 实证研究 | 研究通过参数修改进行模型修复或适配。 |
 
 ### 编写与编译
 
@@ -83,6 +90,7 @@
 | [Weight-space programming for tractor guidance controller: large language models natively write neural network weights that steer a real tractor](https://arxiv.org/abs/2611.21958) | arXiv 预印本 · 2026-11-16 | 实证研究 | 编写紧凑的神经网络转向控制器，并在仿真环境和真实拖拉机上评估。 |
 | [Weight-Space Programming for Materials Science](https://arxiv.org/abs/2611.22013) | arXiv 预印本 · 2026-11-17 | 实证研究 | 将领域知识转化为用于材料属性排序的权重，过程无需带标签的训练样例。 |
 | [Looped Weight-Space Programming: LLM-Written Transformers for Long Algorithmic Reasoning](https://mbzuai-oryx.github.io/LoopedWSP/) | 作者报告 · 2026-11-23 | 实证研究 | 为迷宫搜索等指定算法编写循环 Transformer 权重，并与经过训练的模型及直接提示大语言模型的做法比较。 [代码](https://github.com/mbzuai-oryx/LoopedWSP) |
+| [PAWP-TTS: Phoneme-Aware Weight Programming for Compact Bilingual English-Nepali Speech Synthesis](https://arxiv.org/abs/2611.29455v1) | arXiv 预印本 · 2026-11-22 · v1 | 实证研究 | 研究如何构造可执行的网络权重。 |
 
 ### 能力写入与组合
 
@@ -106,6 +114,7 @@
 | --- | --- | --- | --- |
 | [WeightBench: Evaluating Language Models as Weight-Space Programmers](https://arxiv.org/abs/2611.18553) | arXiv 预印本 · 2026-11-13 | 基准 | 五个评测轨道共登记 42 项任务，包括判断编辑是否可行以及满足系统资源约束。论文中有 39 项在默认难度下通过有效性门槛。 [代码与排行榜](https://github.com/Aayush-Marasini/WeightBench) |
 | [IWIBench: Evaluating Gradient-Free Model Driven Intra-weight Injection](https://arxiv.org/abs/2611.08647) | arXiv 预印本 · 2026-11-05 | 基准 | 在固定的 Gemma 3 4B IT 检查点上测试无梯度编辑。评分结合归一化目标增益与原模型答对的对照项保留率。 [项目页](https://hcltech-robotics.github.io/iwibench/) · [代码](https://github.com/HCLTech-robotics/iwibench) |
+| [TrojanMaxxing: One-shotting VLM Backdoors with Weight-Space Programming](https://arxiv.org/abs/2611.27425v1) | arXiv 预印本 · 2026-11-20 · v1 | 基准 | 提出或研究用于评估权重空间编程的任务。 |
 
 WeightBench 按任务设定参数访问和反馈权限，参考解的权限也随任务而变。IWIBench 在单一目标检查点上衡量目标增益及指定对照项的保留率。比较分数前可查阅[基准复核](docs/research-review.md#基准复核)。
 
