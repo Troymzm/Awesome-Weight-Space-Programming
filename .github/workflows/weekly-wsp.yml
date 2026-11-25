@@ -1,0 +1,115 @@
+name: Weekly WSP literature update
+
+on:
+  schedule:
+    - cron: '17 9 * * 1'
+      timezone: Asia/Shanghai
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: weekly-wsp-update
+  cancel-in-progress: false
+
+jobs:
+  propose-update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      BASE_BRANCH: ${{ github.ref_name }}
+      UPDATE_BRANCH: automation/weekly-wsp
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Prepare the catalog update branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --prune origin
+          base_ref="refs/remotes/origin/$BASE_BRANCH"
+          update_ref="refs/remotes/origin/$UPDATE_BRANCH"
+          git switch --create "$UPDATE_BRANCH" "$base_ref"
+
+          if git show-ref --verify --quiet "$update_ref"; then
+            changed_paths=$(git diff --name-only "$base_ref...$update_ref" -- . \
+              ':!data/catalog.json' ':!README.md' ':!README.zh-CN.md' ':!references.bib')
+            if [[ -n "$changed_paths" ]]; then
+              echo 'The update branch has non-catalog changes. Review it before the next run.' >&2
+              exit 1
+            fi
+            closed_head=$(gh api --method GET "repos/$GITHUB_REPOSITORY/pulls" \
+              -f "head=$GITHUB_REPOSITORY_OWNER:$UPDATE_BRANCH" -f "base=$BASE_BRANCH" \
+              -f state=all -f sort=created -f direction=desc -F per_page=1 \
+              --jq '.[0] | select(.state == "closed") | .head.sha')
+            if [[ "$closed_head" == "$(git rev-parse "$update_ref")" ]]; then
+              # Keep the branch history while starting from the reviewed catalog.
+              git merge --no-edit --no-ff --strategy=ours "$update_ref"
+            else
+              git merge --no-edit "$update_ref"
+            fi
+          fi
+
+      - name: Test the updater
+        run: python -B -m unittest discover -s scripts/tests -v
+
+      - name: Check arXiv and render proposed changes
+        run: |
+          report="$RUNNER_TEMP/wsp-weekly.md"
+          status=0
+          python -B scripts/wsp_weekly.py --report "$report" || status=$?
+          if [[ -f "$report" ]]; then
+            cat "$report" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$status"
+
+      - name: Create or update the draft pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          base_ref="refs/remotes/origin/$BASE_BRANCH"
+          update_ref="refs/remotes/origin/$UPDATE_BRANCH"
+          catalog_paths=(data/catalog.json README.md README.zh-CN.md references.bib)
+          git add -- "${catalog_paths[@]}"
+          git diff --cached --check
+          if ! git diff --cached --quiet; then
+            git commit -m 'Update WSP literature catalog'
+          fi
+
+          if git diff --quiet "$base_ref" HEAD -- "${catalog_paths[@]}"; then
+            echo 'The current catalog has no proposed updates.'
+            exit 0
+          fi
+
+          pull_number=$(gh api --method GET "repos/$GITHUB_REPOSITORY/pulls" \
+            -f "head=$GITHUB_REPOSITORY_OWNER:$UPDATE_BRANCH" -f "base=$BASE_BRANCH" \
+            -f state=open -F per_page=1 --jq '.[0].number // empty')
+          if [[ -n "$pull_number" ]] && git diff --quiet "$update_ref" HEAD -- "${catalog_paths[@]}"; then
+            echo 'The existing draft already contains these catalog changes.'
+            exit 0
+          fi
+
+          git push origin "HEAD:refs/heads/$UPDATE_BRANCH"
+          pr_body="$RUNNER_TEMP/wsp-pr.md"
+          {
+            echo 'Review the source records and bilingual descriptions before merging.'
+            echo
+            echo '## Latest scan'
+            echo
+            cat "$RUNNER_TEMP/wsp-weekly.md"
+          } > "$pr_body"
+
+          if [[ -n "$pull_number" ]]; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/pulls/$pull_number" \
+              -F "body=@$pr_body" --jq '.html_url'
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/pulls" \
+              -f "head=$UPDATE_BRANCH" -f "base=$BASE_BRANCH" -F draft=true \
+              -f 'title=Weekly WSP literature update' -F "body=@$pr_body" --jq '.html_url'
+          fi
