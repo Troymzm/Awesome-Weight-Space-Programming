@@ -9,8 +9,8 @@ SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
 
 from wsp_arxiv import ArxivError, ArxivPaper
-from wsp_catalog import read_catalog, render
-from wsp_weekly import run_weekly
+from wsp_catalog import read_catalog, render, write_catalog
+from wsp_weekly import bib_entry, new_row, run_weekly
 
 
 TODAY = date(2026, 11, 30)
@@ -54,6 +54,18 @@ class WeeklyUpdateTest(unittest.TestCase):
             output = self.root / path
             output.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(SCRIPTS.parent / path, output)
+        # Keep the real section layout while isolating version and cursor fixtures
+        # from future catalog changes, including pending weekly proposals.
+        catalog = read_catalog(self.root)
+        catalog.pop("last_weekly_scan", None)
+        existing = record(BENCH_ID, "Fixture WSP Benchmark")
+        for section in catalog["sections"]:
+            section["rows"] = []
+            if section["id"] == "benchmarks":
+                section["rows"].append(new_row(existing, ("benchmarks", "A benchmark.", "一个基准。")))
+        catalog["bibliography"]["entries"] = [bib_entry(existing)]
+        write_catalog(self.root, catalog)
+        render(self.root, catalog)
         self.report = self.root / "report.md"
 
     def proposal(self, client, day=TODAY):
