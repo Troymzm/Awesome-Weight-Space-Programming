@@ -3,18 +3,19 @@
 import argparse
 import re
 import unicodedata
+from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import unquote
 
 from wsp_arxiv import ArxivClient, ArxivError
-from wsp_catalog import normalize_title, read_catalog, render, write_catalog
+from wsp_catalog import bib_field, normalize_title, read_catalog, render, set_bib_field, write_catalog
 
 BASELINE = date(2026, 11, 25)
 ARXIV_URL = "https://arxiv.org/abs/"
-BIB_ID = re.compile(r"^\s*eprint = \{([^}]+)\}", re.M)
 DOI_URL = re.compile(r"https://(?:dx\.)?doi\.org/(10\.[^\s)]+)", re.I)
 WSP = re.compile(r"\b(?:weight[\s-]+space[\s-]+programming|self[\s-]+wsp)\b")
+WEIGHT_SPACE = re.compile(r"\bweight[\s-]+space\b")
 WEIGHTS = re.compile(r"\b(?:weights?|parameters?|tensors?|checkpoints?)\b")
 EDIT = re.compile(r"\b(?:edit\w*|rewrit\w*|writ\w*|repair\w*|compil\w*|inspect\w*|read\w*)\b")
 AGENT = re.compile(r"\b(?:llms?|language models?|coding agents?|agentic)\b")
@@ -110,6 +111,8 @@ def screen(title, abstract):
         return "explicit WSP title"
     if WSP.search(abstract) and direct:
         return "WSP in abstract with direct weight operations"
+    if direct and WEIGHT_SPACE.search(title) and EDIT.search(title):
+        return "explicit weight-space operation in the title"
     if direct and LIMIT.search(text) and (
         ("weight" in title and EDIT.search(title)) or ("agentic coding" in title and LIMIT.search(title))
     ):
@@ -123,6 +126,7 @@ def new_row(paper, topic):
     return {
         "title": paper.title, "url": paper_url(paper), "arxiv_id": paper.arxiv_id,
         "arxiv_version": paper.version,
+        "arxiv_status_version": paper.version,
         "en": {"status": f"arXiv preprint · {paper.first_submitted} · v{paper.version}",
                "type": en_type, "note": en},
         "zh": {"status": f"arXiv 预印本 · {paper.first_submitted} · v{paper.version}",
@@ -131,6 +135,7 @@ def new_row(paper, topic):
 
 
 def append_status(status, label, version, newer, withdrawn):
+    status = " · ".join(part for part in status.split(" · ") if part != label)
     if newer:
         if status.startswith(("arXiv preprint · ", "arXiv 预印本 · ")):
             status = re.sub(r" · v\d+(?= · |$)", "", status) + f" · v{version}"
@@ -138,18 +143,37 @@ def append_status(status, label, version, newer, withdrawn):
             status = re.sub(r" · arXiv v\d+(?= · |$)", f" · arXiv v{version}", status)
         else:
             status += f" · arXiv v{version}"
-    if withdrawn and label not in status:
+    if withdrawn:
         status += f" · {label}"
     return status
+
+
+def verify_status(client, paper, row, failures):
+    if paper.withdrawn is not None:
+        return paper
+    if row is not None and row.get("arxiv_status_version") == paper.version:
+        return replace(paper, withdrawn=row.get("arxiv_withdrawn", False))
+    try:
+        checked = client.check_status(paper)
+        if (checked.arxiv_id, checked.version) != (paper.arxiv_id, paper.version) or checked.withdrawn is None:
+            raise ArxivError("the latest record could not be verified")
+        return checked
+    except ArxivError as exc:
+        failures.append(f"arXiv status for {paper.arxiv_id}v{paper.version}: {exc}")
+        return None
 
 
 def refresh_row(row, paper, bib, bib_index):
     old_version = version_in_row(row)
     newer = paper.version > old_version
-    withdrawn = paper.withdrawn and not row.get("arxiv_withdrawn")
+    was_withdrawn = row.get("arxiv_withdrawn", False) or (
+        "arXiv withdrawn" in row["en"]["status"].split(" · ")
+    )
+    withdrawal_changed = paper.withdrawn != was_withdrawn
     preprint = row["en"]["status"].startswith("arXiv preprint")
     source = arxiv_link(paper.arxiv_id)
     changes = []
+    row["arxiv_status_version"] = paper.version
     if newer:
         changes.append(f"arXiv v{old_version} → v{paper.version}")
         row["arxiv_version"] = paper.version
@@ -160,34 +184,39 @@ def refresh_row(row, paper, bib, bib_index):
         row["url"] = source.sub(paper_url(paper), row["url"])
         for language in ("en", "zh"):
             row[language]["note"] = source.sub(paper_url(paper), row[language]["note"])
-    if withdrawn:
-        row["arxiv_withdrawn"] = True
-        changes.append("arXiv marked withdrawn")
+    if withdrawal_changed:
+        if paper.withdrawn:
+            row["arxiv_withdrawn"] = True
+            changes.append("arXiv marked withdrawn")
+        else:
+            row.pop("arxiv_withdrawn", None)
+            changes.append("arXiv verified an active version after withdrawal")
     journal = paper.journal_ref.strip()
     if preprint and journal and journal != row.get("arxiv_journal_ref"):
         row["arxiv_journal_ref"] = journal
         changes.append(f"verify arXiv journal reference: {journal}")
-    if not (newer or withdrawn):
+    if not (newer or withdrawal_changed):
         return changes
 
     for language, label in (("en", "arXiv withdrawn"), ("zh", "arXiv 已撤回")):
         row[language]["status"] = append_status(
-            row[language]["status"], label, paper.version, newer, withdrawn
+            row[language]["status"], label, paper.version, newer, paper.withdrawn
         )
     index = bib_index[paper.arxiv_id]
     entry = bib[index]
     if newer:
         entry = source.sub(paper_url(paper), entry)
         if preprint and not paper.withdrawn:
-            entry = re.sub(r"^  title = .*,$", lambda _: f"  title = {{{{{latex(row['title'])}}}}},",
-                           entry, count=1, flags=re.M)
-            entry = re.sub(r"^  author = .*,$", lambda _: f"  author = {{{bib_authors(paper)}}},",
-                           entry, count=1, flags=re.M)
-    annotation = "arXiv withdrawn" if withdrawn else f"arXiv v{paper.version}"
-    entry = re.sub(r"^(  note = \{)(.*)(\})$",
-                   lambda m: m[1] + re.sub(r", (?:arXiv )?v\d+$", "", m[2]) + ", " + annotation + m[3],
-                   entry, count=1, flags=re.M)
-    bib[index] = entry
+            entry = set_bib_field(entry, "title", "{" + latex(row["title"]) + "}")
+            entry = set_bib_field(entry, "author", bib_authors(paper))
+    note = (bib_field(entry, "note") or "").split(", ")
+    note = [part for part in note if part and part != "arXiv withdrawn"]
+    if newer:
+        note = [part for part in note if not re.fullmatch(r"(?:arXiv )?v\d+", part)]
+        note.append(f"arXiv v{paper.version}")
+    if paper.withdrawn:
+        note.append("arXiv withdrawn")
+    bib[index] = set_bib_field(entry, "note", ", ".join(note))
     return changes
 
 
@@ -207,8 +236,9 @@ def run_weekly(root, client, today, report_path):
     sections = {section["id"]: section["rows"] for section in catalog["sections"]}
     rows = [row for group in sections.values() for row in group]
     tracked = {row["arxiv_id"]: row for row in rows if row.get("arxiv_id")}
+    excluded = catalog.get("excluded_arxiv_ids", {})
     bib = catalog["bibliography"]["entries"]
-    bib_index = {match[1]: i for i, entry in enumerate(bib) if (match := BIB_ID.search(entry))}
+    bib_index = {arxiv_id: i for i, entry in enumerate(bib) if (arxiv_id := bib_field(entry, "eprint"))}
 
     previous = date.fromisoformat(catalog.get("last_weekly_scan", BASELINE.isoformat()))
     start = min(today - timedelta(days=13), previous - timedelta(days=3))
@@ -224,7 +254,11 @@ def run_weekly(root, client, today, report_path):
 
     updated, additions, screened_out = [], [], []
     for paper in sorted(refreshed, key=lambda p: p.arxiv_id):
-        changes = refresh_row(tracked[paper.arxiv_id], paper, bib, bib_index)
+        row = tracked[paper.arxiv_id]
+        paper = verify_status(client, paper, row, failures)
+        if paper is None:
+            continue
+        changes = refresh_row(row, paper, bib, bib_index)
         if changes:
             updated.append(report_line(paper, "; ".join(changes)))
 
@@ -237,14 +271,17 @@ def run_weekly(root, client, today, report_path):
     }
     for paper in sorted(found, key=lambda p: (p.first_submitted, p.arxiv_id), reverse=True):
         key = normalize_title(paper.title)
-        doi = paper.doi.casefold()
-        if paper.withdrawn or paper.arxiv_id in tracked or key in titles or (doi and doi in dois):
+        doi = unquote(paper.doi).casefold()
+        if paper.arxiv_id in excluded or paper.arxiv_id in tracked or key in titles or (doi and doi in dois):
             continue
         title, abstract = map(search_text, (paper.title, paper.abstract))
         reason = screen(title, abstract)
         if not reason:
-            if WSP.search(abstract) and len(screened_out) < 20:
+            if (WSP.search(abstract) or WEIGHT_SPACE.search(title)) and len(screened_out) < 20:
                 screened_out.append(report_line(paper, "manual screening suggested"))
+            continue
+        paper = verify_status(client, paper, None, failures)
+        if paper is None or paper.withdrawn:
             continue
         topic = topic_for(title, abstract)
         row = new_row(paper, topic)

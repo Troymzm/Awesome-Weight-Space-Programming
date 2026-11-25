@@ -11,8 +11,10 @@ The [scope](README.md#scope) describes the boundary between the direct WSP catal
 
 ## Weekly arXiv review
 
-GitHub Actions scans arXiv on Mondays at 09:17 Asia/Shanghai. It looks back at least 14 days and checks the current versions of the catalog's arXiv IDs separately. A failed query retains the previous checkpoint. The workflow stores the search window, result counts and source errors in its run summary.
+GitHub Actions scans arXiv on Mondays at 09:17 Asia/Shanghai. It looks back at least 14 days and checks the current versions of the catalog's arXiv IDs separately. Publication proposals use the withdrawal status on the official page for the exact version. An unavailable status leaves that record pending and retains the previous checkpoint. The workflow stores the search window, result counts and source errors in its run summary.
 
-Review proposals in the draft **Weekly WSP literature update** pull request. The automated descriptions classify candidates from titles and abstracts. Follow the primary links to verify both descriptions, the evaluation conditions and any claimed venue. If arXiv changes a linked revision, check that the description still applies. Revise or remove proposals in the catalog, regenerate the files, then review and merge the pull request.
+Review proposals in the draft **Weekly WSP literature update** pull request. The automated descriptions classify candidates from titles and abstracts. Follow the primary links to verify both descriptions, the evaluation conditions and any claimed venue. If arXiv changes a linked revision, check that the description still applies. Revise proposals in the catalog, regenerate the files, then review and merge the pull request.
+
+To exclude a candidate from future scans, remove its catalog row and BibTeX entry and record its bare arXiv ID and a short reason in the top-level `excluded_arxiv_ids` object in `data/catalog.json`. Regenerate the published files and include the decision in the reviewed pull request. Remove the exclusion to reconsider the paper later.
 
 The coverage date at the top of the READMEs describes the baseline literature review. Weekly arXiv scans are tracked separately in the catalog and in Actions.

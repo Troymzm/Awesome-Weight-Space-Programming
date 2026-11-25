@@ -1,30 +1,27 @@
-"""Incremental arXiv search and catalog refresh via the public Atom API."""
+"""Incremental arXiv search and exact-version status verification."""
 
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timezone
 from email.utils import parsedate_to_datetime
+from html.parser import HTMLParser
 from http.client import HTTPException
 import re
 from time import monotonic, sleep
 from urllib.error import HTTPError
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 from xml.etree import ElementTree
 
 
 API = "https://export.arxiv.org/api/query"
+ABS = "https://arxiv.org/abs"
 ATOM = "{http://www.w3.org/2005/Atom}"
 ARXIV = "{http://arxiv.org/schemas/atom}"
 SEARCH = "{http://a9.com/-/spec/opensearch/1.1/}"
 ARTICLE_ID = r"(?:\d{4}\.\d{4,5}|[a-z.-]+/\d{7})"
 ENTRY_ID = re.compile(rf"https?://(?:www\.)?arxiv\.org/abs/({ARTICLE_ID})v([1-9]\d*)")
-WITHDRAWN = re.compile(
-    r"^(?:\[(?:withdrawn|retracted)\]|(?:withdrawn|retracted)(?:\b.*)?$|"
-    r"(?:this|the) (?:paper|article|submission|manuscript|preprint) "
-    r"(?:has (?:now )?been|was|is(?: being)?) (?:withdrawn|retracted)\b)",
-    re.IGNORECASE,
-)
+VERSION_LINE = re.compile(r"^\[v([1-9]\d*)\]\s+(.+)$")
 CORE_PHRASES = (
     "weight-space programming",
     "weight space programming",
@@ -42,12 +39,20 @@ DISCOVERY_PHRASES = (
     "weight-space repair",
     "rewriting its weights",
     "rewrite their own weights",
+    "weights as programs",
+    "programming model weights",
+)
+WEIGHT_SPACE_TITLES = ("in weight space", "in the weight space", "in weight-space", "from weights")
+OPERATION_TERMS = (
+    "read", "reads", "reading", "write", "writes", "writing", "repair", "repairing",
+    "edit", "editing", "diagnose", "diagnosing", "programming", "synthesis",
 )
 CATEGORIES = ("cs.AI", "cs.CL", "cs.CV", "cs.LG", "cs.PL", "cs.RO", "stat.ML")
 PAGE_SIZE = 100
 BATCH_SIZE = 50
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
 RETRYABLE_STATUS = {408, 429, 500, 502, 503, 504}
+ABS_CRAWL_DELAY = 15
 
 
 class ArxivError(RuntimeError):
@@ -67,7 +72,7 @@ class ArxivPaper:
     doi: str = ""
     journal_ref: str = ""
     comment: str = ""
-    withdrawn: bool = False
+    withdrawn: bool | None = None
 
 
 def _text(element, tag):
@@ -114,7 +119,6 @@ def _parse_entry(entry):
         doi=_text(entry, ARXIV + "doi"),
         journal_ref=_text(entry, ARXIV + "journal_ref"),
         comment=comment,
-        withdrawn=any(WITHDRAWN.search(value) for value in (title, comment, abstract)),
     )
 
 
@@ -137,8 +141,91 @@ def _search_query(start, end):
         return " OR ".join(f'{field}:"{term}"' for term in group for field in ("ti", "abs"))
 
     categories = " OR ".join(f"cat:{category}" for category in CATEGORIES)
+    space = " OR ".join(f'ti:"{term}"' for term in WEIGHT_SPACE_TITLES)
+    operations = " OR ".join(f"ti:{term}" for term in OPERATION_TERMS)
+    exploration = f"({phrases(DISCOVERY_PHRASES)}) OR (({space}) AND ({operations}))"
     dates = f"submittedDate:[{start:%Y%m%d}0000 TO {end:%Y%m%d}2359]"
-    return f"(({phrases(CORE_PHRASES)}) OR (({phrases(DISCOVERY_PHRASES)}) AND ({categories}))) AND {dates}"
+    return f"(({phrases(CORE_PHRASES)}) OR (({exploration}) AND ({categories}))) AND {dates}"
+
+
+class _VersionPage(HTMLParser):
+    """Read the submission history and arXiv's own download controls."""
+
+    def __init__(self):
+        super().__init__()
+        self.history_depth = 0
+        self.history = []
+        self.selected = []
+        self.version_label = None
+        self.version_linked = False
+        self.downloads = []
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        classes = (attrs.get("class") or "").split()
+        if tag == "div" and (self.history_depth or "submission-history" in classes):
+            self.history_depth += 1
+        if self.history_depth:
+            if tag == "br":
+                self.history.append("\n")
+            if tag == "strong":
+                self.version_label = []
+                self.version_linked = False
+            if tag == "a" and self.version_label is not None:
+                self.version_linked = True
+        full_text = {"download-pdf", "mobile-submission-download", "download-eprint"}
+        if tag == "a" and full_text.intersection(classes) and attrs.get("href"):
+            self.downloads.append(attrs["href"])
+
+    def handle_endtag(self, tag):
+        if self.history_depth and tag == "div":
+            self.history_depth -= 1
+        if tag == "strong" and self.version_label is not None:
+            if not self.version_linked:
+                self.selected.append(" ".join(self.version_label))
+            self.version_label = None
+
+    def handle_data(self, data):
+        if self.history_depth:
+            self.history.append(data.strip())
+            if self.version_label is not None:
+                self.version_label.append(data.strip())
+
+
+def _withdrawn_status(data, final_url, paper):
+    expected = f"{paper.arxiv_id}v{paper.version}"
+    match = ENTRY_ID.fullmatch(final_url)
+    if not final_url.startswith("https://") or not match or match.groups() != (paper.arxiv_id, str(paper.version)):
+        raise ArxivError(f"arXiv did not serve the requested abstract page for {expected}")
+
+    page = _VersionPage()
+    try:
+        page.feed(data.decode("utf-8"))
+        page.close()
+        versions = [m for line in " ".join(page.history).split("\n")
+                    if (m := VERSION_LINE.fullmatch(" ".join(line.split())))]
+        matches = [m[2] for m in versions if m[1] == str(paper.version)]
+        if (page.history_depth or " ".join(page.selected).strip() != f"[v{paper.version}]"
+                or len(matches) != 1):
+            raise ValueError("missing unique selected version")
+        current = {expected}
+        if paper.version == max(int(m[1]) for m in versions):
+            current.add(paper.arxiv_id)
+        has_download = False
+        for link in page.downloads:
+            parsed = urlsplit(link)
+            parts = parsed.path.removeprefix("/").split("/", 1)
+            if (parsed.scheme in {"", "https"} and parsed.netloc in {"", "arxiv.org", "www.arxiv.org"}
+                    and len(parts) == 2
+                    and parts[0] in {"pdf", "src"} and parts[1].removesuffix(".pdf") in current):
+                has_download = True
+                break
+        withdrawn = bool(re.search(r"\((?:withdrawn|retracted)\)\s*$", matches[0], re.I))
+        if withdrawn != has_download:
+            return withdrawn
+    except (UnicodeError, ValueError) as error:
+        raise ArxivError(f"arXiv status was not verifiable for {expected}") from error
+    raise ArxivError(f"arXiv status was not verifiable for {expected}")
 
 
 def _retry_after(header):
@@ -163,10 +250,14 @@ class ArxivClient:
 
     def _request(self, params):
         url = f"{API}?{urlencode(params)}"
+        data, _ = self._get(url, "application/atom+xml", 3)
+        return _parse_feed(data)
+
+    def _get(self, url, content_type, interval):
         request = Request(
             url,
             headers={
-                "Accept": "application/atom+xml",
+                "Accept": content_type,
                 "User-Agent": "Awesome-Weight-Space-Programming weekly literature index",
             },
         )
@@ -174,13 +265,14 @@ class ArxivClient:
             delay = self._next_request - monotonic()
             if delay > 0:
                 sleep(delay)
-            self._next_request = monotonic() + 3.0
+            self._next_request = monotonic() + interval
             try:
                 with urlopen(request, timeout=30) as response:
                     data = response.read(MAX_RESPONSE_BYTES + 1)
+                    final_url = response.geturl()
                 if len(data) > MAX_RESPONSE_BYTES:
                     raise ArxivError("arXiv response exceeded the size limit")
-                return _parse_feed(data)
+                return data, final_url
             except HTTPError as error:
                 retry_after = _retry_after(error.headers.get("Retry-After"))
                 error.close()
@@ -192,7 +284,15 @@ class ArxivClient:
                 retry_after = 0
             if retry_after > 60:
                 raise ArxivError("arXiv requested a retry after more than 60 seconds")
-            self._next_request = max(self._next_request, monotonic() + max(3 * (2**attempt), retry_after))
+            self._next_request = max(self._next_request, monotonic() + max(interval, 3 * (2**attempt), retry_after))
+
+    def check_status(self, paper: ArxivPaper) -> ArxivPaper:
+        """Resolve status on the exact arXiv abstract page under its crawl delay."""
+        if not re.fullmatch(ARTICLE_ID, paper.arxiv_id) or paper.version < 1:
+            raise ValueError("arXiv status check requires a valid versioned identifier")
+        url = f"{ABS}/{paper.arxiv_id}v{paper.version}"
+        data, final_url = self._get(url, "text/html", ABS_CRAWL_DELAY)
+        return replace(paper, withdrawn=_withdrawn_status(data, final_url, paper))
 
     def search(self, start: date, end: date) -> list[ArxivPaper]:
         """Find papers first submitted in the inclusive UTC date range."""

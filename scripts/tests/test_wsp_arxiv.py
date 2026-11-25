@@ -1,4 +1,5 @@
 from datetime import date
+from dataclasses import replace
 import unittest
 from unittest.mock import patch
 
@@ -37,8 +38,21 @@ def paper(identifier):
     )
 
 
+def version_page(identifier, selected, versions, pdf=None):
+    history = []
+    for version, withdrawn in versions:
+        marker = f"<strong>[v{version}]</strong>" if version == selected else (
+            f'<strong><a href="/abs/{identifier}v{version}">[v{version}]</a></strong>'
+        )
+        status = " <em>(withdrawn)</em>" if withdrawn else ""
+        history.append(f"{marker}\n Thu, 19 Nov 2026 05:27:26 UTC (26 KB){status}<br/>")
+    download = f'<a href="/pdf/{pdf}" class="abs-button download-pdf">View PDF</a>' if pdf else ""
+    return (f'<div class="submission-history">Submission history<br/>{"".join(history)}</div>'
+            f"{download}").encode()
+
+
 class ArxivTests(unittest.TestCase):
-    def test_parse_revision_and_withdrawal_metadata(self):
+    def test_atom_comments_do_not_establish_withdrawal_status(self):
         _, _, records = _parse_feed(feed(entry("This paper has been withdrawn."), total=1))
         record = records[0]
         self.assertEqual(record.arxiv_id, "2611.00001")
@@ -47,8 +61,42 @@ class ArxivTests(unittest.TestCase):
         self.assertEqual(record.first_submitted, date(2026, 11, 26))
         self.assertEqual(record.doi, "10.1234/test")
         self.assertEqual(record.journal_ref, "Example Proceedings")
-        self.assertTrue(record.withdrawn)
-        self.assertFalse(_parse_feed(feed(entry("Revised experiments"), total=1))[2][0].withdrawn)
+        self.assertIsNone(record.withdrawn)
+        self.assertIsNone(_parse_feed(feed(entry("Revised experiments"), total=1))[2][0].withdrawn)
+
+    def test_status_uses_exact_version_and_official_history(self):
+        client = ArxivClient()
+        record = paper("2611.18690")
+        url = f"https://arxiv.org/abs/{record.arxiv_id}v2"
+        data = version_page(record.arxiv_id, 2, [(1, False), (2, True)])
+        with patch.object(client, "_get", return_value=(data, url)) as request:
+            self.assertIs(client.check_status(record).withdrawn, True)
+        request.assert_called_once_with(url, "text/html", 15)
+
+        record = replace(paper("0807.0090"), version=10, withdrawn=True)
+        url = f"https://arxiv.org/abs/{record.arxiv_id}v10"
+        data = version_page(record.arxiv_id, 10, [(4, True), (10, False)], pdf=record.arxiv_id)
+        with patch.object(client, "_get", return_value=(data, url)):
+            self.assertIs(client.check_status(record).withdrawn, False)
+
+    def test_status_rejects_inconclusive_or_other_version_pages(self):
+        client = ArxivClient()
+        record = paper("2611.18690")
+        name = record.arxiv_id
+        url = f"https://arxiv.org/abs/{name}v2"
+        cases = [
+            (b"<html>temporary error page</html>", url),
+            (version_page(name, 2, [(2, False)]), url),
+            (version_page(name, 2, [(2, True)], pdf=f"{name}v2"), url),
+            (version_page(name, 1, [(1, False), (2, True)], pdf=f"{name}v1"), url),
+            (version_page(name, 2, [(2, True)]), f"https://arxiv.org/abs/{name}"),
+        ]
+        for data, final_url in cases:
+            with self.subTest(final_url=final_url, data=data), patch.object(
+                client, "_get", return_value=(data, final_url)
+            ):
+                with self.assertRaises(ArxivError):
+                    client.check_status(record)
 
     def test_error_entry_is_not_an_empty_search(self):
         error = "<entry><id>http://arxiv.org/api/errors#bad</id><title>Error</title></entry>"
@@ -71,6 +119,8 @@ class ArxivTests(unittest.TestCase):
         self.assertIn("submittedDate:[202611240000 TO 202611282359]", query)
         self.assertIn('ti:"weight-space programming"', query)
         self.assertIn('abs:"direct weight editing"', query)
+        self.assertIn('ti:"in weight space"', query)
+        self.assertIn('ti:repairing', query)
 
     def test_search_distinguishes_empty_and_incomplete(self):
         client = ArxivClient()

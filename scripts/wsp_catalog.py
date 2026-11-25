@@ -15,6 +15,7 @@ READMES = {
 }
 TABLE_SEPARATOR = "| --- | --- | --- | --- |"
 ARXIV_URL = re.compile(r"https://arxiv\.org/abs/(\d{4}\.\d{4,5})(?:v\d+)?(?![\w./-])")
+ARXIV_ID = re.compile(r"\d{4}\.\d{4,5}")
 
 
 def normalize_title(title: str) -> str:
@@ -66,12 +67,48 @@ def _single_line(value: str, name: str) -> None:
         raise ValueError(f"expected a nonempty single line for {name}")
 
 
+def _bib_field_match(entry: str, name: str):
+    return re.search(
+        rf"^[ \t]*{re.escape(name)}[ \t]*=[ \t]*"
+        r'(?P<value>\{(?P<braced>[^\r\n]*)\}|"(?P<quoted>[^\r\n]*)")[ \t]*,?[ \t]*$',
+        entry, re.IGNORECASE | re.MULTILINE,
+    )
+
+
+def bib_field(entry: str, name: str) -> str | None:
+    match = _bib_field_match(entry, name)
+    if match is None:
+        return None
+    value = match["braced"] if match["braced"] is not None else match["quoted"]
+    return value.strip()
+
+
+def set_bib_field(entry: str, name: str, value: str) -> str:
+    match = _bib_field_match(entry, name)
+    if match is not None:
+        start, end = match.span("value")
+        return entry[:start] + "{" + value + "}" + entry[end:]
+    body, separator, _ = entry.rpartition("\n}")
+    if not separator:
+        raise ValueError("cannot append a BibTeX field to a malformed entry")
+    body = body.rstrip()
+    comma = "" if body.endswith(",") else ","
+    return f"{body}{comma}\n  {name} = {{{value}}}\n}}"
+
+
 def validate(catalog: dict) -> None:
     title_keys = set()
     row_urls = set()
     arxiv_citations = {}
     section_ids = set()
     headings = {language: set() for language in READMES}
+    excluded = catalog.get("excluded_arxiv_ids", {})
+    if not isinstance(excluded, dict):
+        raise ValueError("excluded_arxiv_ids must map arXiv IDs to review reasons")
+    for arxiv_id, reason in excluded.items():
+        if not ARXIV_ID.fullmatch(arxiv_id):
+            raise ValueError(f"invalid excluded arXiv ID: {arxiv_id}")
+        _single_line(reason, f"exclusion reason for arXiv:{arxiv_id}")
 
     for section in catalog["sections"]:
         section_id = section["id"]
@@ -110,6 +147,8 @@ def validate(catalog: dict) -> None:
             if primary and arxiv_id != primary[1]:
                 raise ValueError(f"incorrect arXiv ID for {title}")
             if arxiv_id is not None:
+                if arxiv_id in excluded:
+                    raise ValueError(f"excluded arXiv ID is still in the catalog: {arxiv_id}")
                 if arxiv_id in arxiv_citations:
                     raise ValueError(f"duplicate arXiv ID: {arxiv_id}")
                 localized = [
@@ -129,12 +168,11 @@ def validate(catalog: dict) -> None:
             first_line = entry.partition("\n")[0]
             raise ValueError(f"invalid or duplicate BibTeX entry: {first_line}")
         citation_keys.add(key[1])
-        eprint = re.search(r"(?m)^\s*eprint\s*=\s*\{([^}]+)\}", entry)
-        if not eprint:
+        arxiv_id = bib_field(entry, "eprint")
+        if arxiv_id is None:
             continue
-        arxiv_id = eprint[1]
-        citation_url = re.search(r"(?m)^\s*url\s*=\s*\{([^}]+)\}", entry)
-        if citation_url is None or citation_url[1] not in arxiv_citations.get(arxiv_id, ()):
+        citation_url = bib_field(entry, "url")
+        if citation_url not in arxiv_citations.get(arxiv_id, ()):
             raise ValueError(f"BibTeX URL does not match the catalog for arXiv:{arxiv_id}")
         if arxiv_id in cited_ids:
             raise ValueError(f"duplicate bibliography entry for arXiv:{arxiv_id}")
