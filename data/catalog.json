@@ -313,6 +313,20 @@
             "type": "实证研究",
             "note": "研究通过参数修改进行模型修复或适配。"
           }
+        },
+        {
+          "title": "SGNE-CC v2: Editing 205 Weight Columns in DeepSeek-R1-Distill-Qwen-1.5B Improves Greedy Accuracy and Reduces Unfinished Responses",
+          "url": "https://doi.org/10.5281/zenodo.24398165",
+          "en": {
+            "status": "Zenodo technical report · 2026-11-20",
+            "type": "Empirical study",
+            "note": "Rotates 205 MLP down_proj columns without changing column norms on DeepSeek-R1-Distill-Qwen-1.5B, raising pooled greedy accuracy from 60.5% to 69.5% and cutting unfinished responses from 28.9% to 3.9% across 1,054 prompts at 32k tokens. [Code & traces](https://github.com/Nondual-Observer/deepseek-r1-1.5b-sgne-cc-v2) · [Weights](https://huggingface.co/Nondual-Observer/DeepSeek-R1-Distill-Qwen-1.5B-SGNE-CC-v2)"
+          },
+          "zh": {
+            "status": "Zenodo 技术报告 · 2026-11-20",
+            "type": "实证研究",
+            "note": "在不改变列范数的前提下旋转 DeepSeek-R1-Distill-Qwen-1.5B 中 205 个 MLP down_proj 列，在 32k 上限的 1,054 道贪婪解码评测题上将汇总准确率从 60.5% 提升至 69.5%，未完成率从 28.9% 降至 3.9%。[代码与轨迹](https://github.com/Nondual-Observer/deepseek-r1-1.5b-sgne-cc-v2) · [权重](https://huggingface.co/Nondual-Observer/DeepSeek-R1-Distill-Qwen-1.5B-SGNE-CC-v2)"
+          }
         }
       ]
     },
@@ -1017,6 +1031,20 @@
             "status": "社区报告 · 2026-11-17",
             "type": "实证研究",
             "note": "在 300 个仿真留出起点上评估 LeWAM 编辑，未发现相对于原策略有明确的成功率增益。"
+          }
+        },
+        {
+          "title": "Weight-Space Audit of MIT-p50c and DNA Weight Editing (SGNE-CC) on Qwen3.5-0.8B at a 32,768-Token Generation Limit",
+          "url": "https://doi.org/10.5281/zenodo.24235218",
+          "en": {
+            "status": "Zenodo technical report · 2026-11-15",
+            "type": "Empirical study",
+            "note": "Re-evaluates the MIT-p50c Qwen3.5-0.8B patch at greedy T=0 without presence penalty (32k limit) and compares it with SGNE-CC, a norm-preserving spherical rotation of MLP down_proj, GatedDeltaNet out_proj, and one gate row. [Code & traces](https://github.com/Nondual-Observer/dna-weight-editing) · [Weights](https://huggingface.co/Nondual-Observer/Qwen3.5-0.8B-SGNE-CC)"
+          },
+          "zh": {
+            "status": "Zenodo 技术报告 · 2026-11-15",
+            "type": "实证研究",
+            "note": "在无重复惩罚的贪婪解码（T=0，32k 上限）下重新评估 MIT-p50c Qwen3.5-0.8B 补丁，并与保持列范数不变的球面旋转方法 SGNE-CC（编辑 MLP down_proj、GatedDeltaNet out_proj 及一行门控权重）进行对比。[代码与轨迹](https://github.com/Nondual-Observer/dna-weight-editing) · [权重](https://huggingface.co/Nondual-Observer/Qwen3.5-0.8B-SGNE-CC)"
           }
         }
       ]
@@ -2233,7 +2261,9 @@
       "@misc{arxiv_2611_29455,\n  title = {{PAWP-TTS: Phoneme-Aware Weight Programming for Compact Bilingual English-Nepali Speech Synthesis}},\n  author = {Firoj Paudel},\n  year = {2026},\n  archivePrefix = {arXiv},\n  eprint = {2611.29455},\n  url = {https://arxiv.org/abs/2611.29455v1},\n  note = {arXiv preprint, v1}\n}",
       "@misc{arxiv_2611_27920,\n  title = {{Autonomous Parameter Surgery: How LLMs Implant Selective Backdoors into Language Models}},\n  author = {Xuyang Liu and Zhiwei Xu and Zirui Li and Jiabao Gao and Xiaolin Peng and Weixian Deng and Tian Qiu and Hai Wan and Xibin Zhao},\n  year = {2026},\n  archivePrefix = {arXiv},\n  eprint = {2611.27920},\n  url = {https://arxiv.org/abs/2611.27920v1},\n  note = {arXiv preprint, v1}\n}",
       "@misc{arxiv_2611_27425,\n  title = {{TrojanMaxxing: One-shotting VLM Backdoors with Weight-Space Programming}},\n  author = {Ahaan Dabholkar and Harshvardhan Patel and Michalis Polychronakis and Saurabh Bagchi},\n  year = {2026},\n  archivePrefix = {arXiv},\n  eprint = {2611.27425},\n  url = {https://arxiv.org/abs/2611.27425v1},\n  note = {arXiv preprint, v1}\n}",
-      "@misc{arxiv_2611_28105,\n  title = {{Gradient-Free Few-Shot Adaptation of Vision Models via Agentic Coding}},\n  author = {Khayrul Islam},\n  year = {2026},\n  archivePrefix = {arXiv},\n  eprint = {2611.28105},\n  url = {https://arxiv.org/abs/2611.28105v1},\n  note = {arXiv preprint, v1}\n}"
+      "@misc{arxiv_2611_28105,\n  title = {{Gradient-Free Few-Shot Adaptation of Vision Models via Agentic Coding}},\n  author = {Khayrul Islam},\n  year = {2026},\n  archivePrefix = {arXiv},\n  eprint = {2611.28105},\n  url = {https://arxiv.org/abs/2611.28105v1},\n  note = {arXiv preprint, v1}\n}",
+      "@misc{zhuk2026sgnecc1,\n  title = {{Weight-Space Audit of MIT-p50c and DNA Weight Editing (SGNE-CC) on Qwen3.5-0.8B at a 32,768-Token Generation Limit}},\n  author = {Igor M. Zhuk},\n  year = {2026},\n  doi = {10.5281/zenodo.24235218},\n  url = {https://doi.org/10.5281/zenodo.24235218},\n  note = {Zenodo technical report, November 15, 2026}\n}",
+      "@misc{zhuk2026sgnecc2,\n  title = {{SGNE-CC v2: Editing 205 Weight Columns in DeepSeek-R1-Distill-Qwen-1.5B Improves Greedy Accuracy and Reduces Unfinished Responses}},\n  author = {Igor M. Zhuk},\n  year = {2026},\n  doi = {10.5281/zenodo.24398165},\n  url = {https://doi.org/10.5281/zenodo.24398165},\n  note = {Zenodo technical report, November 20, 2026}\n}"
     ]
   },
   "last_weekly_scan": "2026-11-25"

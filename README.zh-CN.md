@@ -72,6 +72,7 @@
 | [Weight Coding: Evolving Web-Scale Recommenders through Direct Weight Edits with LLM Agents](https://arxiv.org/abs/2611.29613v1) | arXiv 预印本 · 2026-11-22 · v1 | 实证研究 | 研究通过参数修改进行模型修复或适配。 |
 | [Autonomous Parameter Surgery: How LLMs Implant Selective Backdoors into Language Models](https://arxiv.org/abs/2611.27920v1) | arXiv 预印本 · 2026-11-20 · v1 | 实证研究 | 研究通过参数修改进行模型修复或适配。 |
 | [Gradient-Free Few-Shot Adaptation of Vision Models via Agentic Coding](https://arxiv.org/abs/2611.28105v1) | arXiv 预印本 · 2026-11-17 · v1 | 实证研究 | 研究通过参数修改进行模型修复或适配。 |
+| [SGNE-CC v2: Editing 205 Weight Columns in DeepSeek-R1-Distill-Qwen-1.5B Improves Greedy Accuracy and Reduces Unfinished Responses](https://doi.org/10.5281/zenodo.24398165) | Zenodo 技术报告 · 2026-11-20 | 实证研究 | 在不改变列范数的前提下旋转 DeepSeek-R1-Distill-Qwen-1.5B 中 205 个 MLP down_proj 列，在 32k 上限的 1,054 道贪婪解码评测题上将汇总准确率从 60.5% 提升至 69.5%，未完成率从 28.9% 降至 3.9%。[代码与轨迹](https://github.com/Nondual-Observer/deepseek-r1-1.5b-sgne-cc-v2) · [权重](https://huggingface.co/Nondual-Observer/DeepSeek-R1-Distill-Qwen-1.5B-SGNE-CC-v2) |
 
 ### 编写与编译
 
@@ -141,6 +142,7 @@ WeightBench 按任务设定参数访问和反馈权限，参考解的权限也�
 | [Re-running “Sparks of Weight-Space Programming”](https://github.com/shapor/weight-space-experiments) | 复现仓库 · 2026-11 | 实证研究 | 增加盲测读取实验和独立评分，并为 Qwen 补丁加入非思考模式对照。 |
 | [The Weight-Space Programming Illusion: Gradient-Free Weight Edits Did Not Beat Random Noise on Filipino](https://huggingface.co/blog/Neurips-2026-MLIntern-Repro/the-weight-space-programming-illusion-gradient-fre) | 社区报告 · 2026-11-22 | 实证研究 | 在 FilBench 的 Global MMLU Tagalog 子集上，对三个小型模型进行的定向编辑均未优于结构和幅度匹配的随机扰动。 |
 | [Can an LLM Program the Weights of a Lewam - Robot Policy?](https://huggingface.co/blog/herooooooooo/can-an-llm-program-the-weights-of-a-lewam-robot-po) | 社区报告 · 2026-11-17 | 实证研究 | 在 300 个仿真留出起点上评估 LeWAM 编辑，未发现相对于原策略有明确的成功率增益。 |
+| [Weight-Space Audit of MIT-p50c and DNA Weight Editing (SGNE-CC) on Qwen3.5-0.8B at a 32,768-Token Generation Limit](https://doi.org/10.5281/zenodo.24235218) | Zenodo 技术报告 · 2026-11-15 | 实证研究 | 在无重复惩罚的贪婪解码（T=0，32k 上限）下重新评估 MIT-p50c Qwen3.5-0.8B 补丁，并与保持列范数不变的球面旋转方法 SGNE-CC（编辑 MLP down_proj、GatedDeltaNet out_proj 及一行门控权重）进行对比。[代码与轨迹](https://github.com/Nondual-Observer/dna-weight-editing) · [权重](https://huggingface.co/Nondual-Observer/Qwen3.5-0.8B-SGNE-CC) |
 
 ## 工具与运行时
 
